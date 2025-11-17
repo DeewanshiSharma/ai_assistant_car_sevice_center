@@ -6,6 +6,10 @@ import pyttsx3
 import sqlite3
 from datetime import datetime, timedelta
 import dateparser
+import pygame
+from io import BytesIO
+import tempfile
+import os
 
 app = Flask(__name__)
 
@@ -35,22 +39,40 @@ def init_db():
 
 init_db()
 
-# ==================== TTS ====================
+# ==================== TTS (gTTS - Cloud TTS with offline fallback) ====================
 def speak(text):
     print(f"Assistant: {text}")
     try:
-        engine = pyttsx3.init()
-        engine.setProperty('rate', 160)
-        voices = engine.getProperty('voices')
-        for v in voices:
-            if any(x in v.name.lower() for x in ['zira', 'female', 'india']):
-                engine.setProperty('voice', v.id)
-                break
-        engine.say(text)
-        engine.runAndWait()
-        engine.stop()
-    except:
-        pass
+        from gtts import gTTS
+        import pygame
+        from io import BytesIO
+        import tempfile
+        import os
+        
+        # Create TTS
+        tts = gTTS(text=text, lang='en', tld='in', slow=False)  # Indian English
+        
+        # Save to temp file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+        tts.save(temp_file.name)
+        
+        # Play with pygame
+        pygame.mixer.init()
+        pygame.mixer.music.load(temp_file.name)
+        pygame.mixer.music.play()
+        
+        # Wait for playback
+        while pygame.mixer.music.get_busy():
+            pygame.time.wait(100)
+        
+        # Cleanup
+        pygame.mixer.quit()
+        os.unlink(temp_file.name)
+        
+    except ImportError:
+        print("gTTS not available – using print only")
+    except Exception as e:
+        print(f"TTS Error: {e} – using print only")
 
 # ==================== VEHICLE NUMBER NORMALIZER ====================
 def normalize_vehicle_no(text):
